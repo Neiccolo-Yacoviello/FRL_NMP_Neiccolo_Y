@@ -21,7 +21,7 @@ def thrust(t):
 # Returns the mass of the rocket at:
 # time "t" (in seconds)
 def mass(t):
-    mass = m0 - quad(lambda t: -thrust(t) / (g_Earth_S * I_sp), 0, t)[0] # Integrate the mass flow rate from 0 to t to get the total change in mass at time t
+    mass = m0 - quad(lambda x: -thrust(x) / (g_Earth_S * I_sp), 0, t)[0] # Integrate the mass flow rate from 0 to t to get the total change in mass at time t
     return mass
 
 # Returns the magnitude of the drag force in the inertial frame at:
