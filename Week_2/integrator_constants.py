@@ -1,4 +1,5 @@
 from typing import Final
+import numpy as np
 
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
@@ -9,10 +10,20 @@ I_sp: Final = 300 # The specific impulse of the rocket engine in seconds
 
 m0: Final = 5.5 # The initial mass of the rocket in kilograms
 
-"""EOM Look Up Tables"""
-atmospheric_LUT: Final = [ # For some height "h" (in meters), the atmospheric info is given by [h, rho, P, T]
+d: Final = 0.1 # The diameter of the rocket in meters
 
-]
+C_m_q: Final = -0.5 # The pitch dampening coefficient
+
+"""EOM Look Up Tables"""
+def atmospheric_LUT(h): # For some height "h" (in meters), the atmospheric info is given by [rho, P, T]
+    if h >= 11000 and h < 25000:
+        T = -56.46
+        P = 22.65 * np.exp(1.73 - 0.000157 * h)
+    else:
+        T = 15.04 - 0.00649 * h
+        P = 101.29 * ((T + 273.1) / 288.08)**5.256
+    rho = P / (0.2869 * (T + 273.1))    
+    return rho, P, T
 
 aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_N, Z_cp]
 

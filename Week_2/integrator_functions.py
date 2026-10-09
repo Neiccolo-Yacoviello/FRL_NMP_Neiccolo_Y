@@ -16,7 +16,7 @@ def thrust(t):
     if t < 5:
        T = thrust_LUT[t] # Retrieve thrust from LUT at time = t
     if t >= 5:
-       return 0 # Burnout
+       return 0 # Burnout (later will be entirely controlled by LUT)
 
 # Returns the mass of the rocket at:
 # time "t" (in seconds)
@@ -55,8 +55,8 @@ def weight(t, h):
 # pitch angle "theta" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 def eom_F_z(t, h, v, S, theta, upsilon):
-    F_z = thrust(t) * np.cos(theta) - weight(t, h) - drag(v, h, S) * np.cos(upsilon) - lift(v, h, S) * np.sin(upsilon)
-    return F_z
+    a_z = (thrust(t) * np.cos(theta) - weight(t, h) - drag(v, h, S) * np.cos(upsilon) - lift(v, h, S) * np.sin(upsilon))/mass(t)
+    return a_z
 
 # Returns the net force in the y-direction of the inertial frame at:
 # time "t" (in seconds) 
@@ -66,13 +66,14 @@ def eom_F_z(t, h, v, S, theta, upsilon):
 # pitch angle "theta" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 def eom_F_y(t, h, v, S, theta, upsilon):
-    F_y = thrust(t) * np.sin(theta) - drag(v, h, S) * np.sin(upsilon) + lift(v, h, S) * np.cos(upsilon)
-    return F_y
+    a_y = (thrust(t) * np.sin(theta) - drag(v, h, S) * np.sin(upsilon) + lift(v, h, S) * np.cos(upsilon))/mass(t)
+    return a_y
 
-# def eom_F_pitch():
+def eom_F_pitch(t, h, v, S, delta_theta):
+    a_pitch = (aerodynamic_LUT[v][2] * (aerodynamic_LUT[v][3] - aerodynamic_LUT[v][1]) + (0.5 * atmospheric_LUT[h][1] * S * d**2 * C_m_q * delta_theta)/v)/inertia_tensor[0][0]
+    return a_pitch
 
-
-# def model():
+def model():
      
 
 # def solve_equation():
