@@ -14,6 +14,8 @@ d: Final = 0.1 # The diameter of the rocket in meters
 
 C_m_q: Final = -0.5 # The pitch dampening coefficient
 
+S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
+
 """EOM Look Up Tables"""
 def atmospheric_LUT(h): # For some height "h" (in meters), the atmospheric info is given by [rho, P, T]
     if h >= 11000 and h < 25000:
@@ -35,7 +37,7 @@ thrust_LUT: Final = [ # For some time "t" (in seconds), the thrust info is given
 
 """RK45 Constants"""
 b_tableau: Final = [
-    [0.0  , 0.0      , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
+    [1.0  , 0.0      , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
     [0.25 , 0.25     , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
     [3/8  , 3/32     , 9/32      , 0.0       , 0.0        , 0.0   , 0.0 ],
     [12/13, 1932/2197, -7200/2197, 7296/2197 , 0.0        , 0.0   , 0.0 ],
