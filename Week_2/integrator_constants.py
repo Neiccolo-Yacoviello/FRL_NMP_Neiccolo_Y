@@ -6,15 +6,21 @@ g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
 
 R_Earth: Final = 6371008 # The mean radius of the Earth in meters
 
-I_sp: Final = 300 # The specific impulse of the rocket engine in seconds
+I_sp: Final = 2284 # The specific impulse of the rocket engine in Newton seconds
 
-m0: Final = 5.5 # The initial mass of the rocket in kilograms
+m0: Final = 4.857 # The initial mass of the rocket in kilograms
 
-d: Final = 0.1 # The diameter of the rocket in meters
+d: Final = 0.0762 # The diameter of the rocket in meters
 
-C_m_q: Final = -0.5 # The pitch dampening coefficient
+L: Final = 1.54 # The length of the rocket in meters
+
+nose_C_p: Final = 1.05 # The center of pressure measued from the nose of the rocket in meters
+
+nose_C_g: Final = 0.899 # The center of gravity measured from the nose of the rocket in meters
 
 S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
+
+C_m_q: Final = -0.5 # The pitch dampening coefficient
 
 """EOM Look Up Tables"""
 def atmospheric_LUT(h): # For some height "h" (in meters), the atmospheric info is given by [rho, P, T]
@@ -27,17 +33,19 @@ def atmospheric_LUT(h): # For some height "h" (in meters), the atmospheric info 
     rho = P / (0.2869 * (T + 273.1))    
     return rho, P, T
 
-aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_N, Z_cp]
+aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_L, C_N, Z_cp]
 
+
+    # return np.array()
 ]
 
-thrust_LUT: Final = [ # For some time "t" (in seconds), the thrust info is given by [t, T]
+open_rocket_LUT: Final = [ # For some time "t" (in seconds), the Open Rocket info is given by [t, T, C_g]
 
 ]
 
 """RK45 Constants"""
 b_tableau: Final = [
-    [1.0  , 0.0      , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
+    [0.0  , 0.0      , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
     [0.25 , 0.25     , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
     [3/8  , 3/32     , 9/32      , 0.0       , 0.0        , 0.0   , 0.0 ],
     [12/13, 1932/2197, -7200/2197, 7296/2197 , 0.0        , 0.0   , 0.0 ],

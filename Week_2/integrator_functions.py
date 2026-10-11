@@ -1,6 +1,5 @@
 from integrator_constants import *
 import numpy as np
-from scipy.integrate import quad
 
 """Functions for the inputs of the equations of motion in a 3DOF rocket model"""
 # Returns the acceleration due to gravity at:
@@ -13,7 +12,7 @@ def gravity(h):
 # time "t" (in seconds) where after burnout (t > 5 seconds) the thrust is zero
 def thrust(t):
     if t < 5:
-       T = thrust_LUT[t] # Retrieve thrust from LUT at time = t
+       T = open_rocket_LUT[t][1] # Retrieve thrust from LUT at time = t
     if t >= 5:
        T = 0 # Burnout (later will be entirely controlled by LUT)
     return T
@@ -24,18 +23,12 @@ def mass_flow_rate(t):
     m_dot = -thrust(t) / (g_Earth_S * I_sp)
     return m_dot
 
-# Returns the mass of the rocket at:
-# time "t" (in seconds)
-def mass(t):
-    mass = m0 + quad(lambda x: mass_flow_rate(x), 0, t)[0] # Integrate the mass flow rate from 0 to t to get the total change in mass at time t
-    return mass
-
 # Returns the magnitude of the drag force in the inertial frame at:
 # height "h" (in meters)
 # velocity "v" (in m/s)
 # reference area "S" (in m^2)
 def drag(h, v):
-    drag = 0.5 * atmospheric_LUT[h][1] * v**2 * aerodynamic_LUT[v][1] * S_area
+    drag = 0.5 * atmospheric_LUT(h)[0] * v**2 * aerodynamic_LUT[v][1] * S_area
     return drag
     
 # Returns the magnitude of the lift force in the inertial frame at:
@@ -43,14 +36,14 @@ def drag(h, v):
 # velocity "v" (in m/s)
 # reference area "S" (in m^2)
 def lift(h, v):
-    lift = 0.5 * atmospheric_LUT[h][1] * v**2 * aerodynamic_LUT[v][2] * S_area
+    lift = 0.5 * atmospheric_LUT(h)[0] * v**2 * aerodynamic_LUT[v][2] * S_area
     return lift
 
 # Returns the weight of the rocket at:
 # height "h" (in meters)
 # time "t" (in seconds)
-def weight(t, h):
-    weight = mass(t) * gravity(h)
+def weight(h, m):
+    weight = m * gravity(h)
     return weight
 
 """EOMs (Equations of Motion) that describe each degree of freedom in a 3DOF rocket model"""
@@ -61,8 +54,9 @@ def weight(t, h):
 # reference area "S" (in m^2) 
 # pitch angle "theta" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
-def eom_a_z(t, h, v, theta, upsilon):
-    a_z = (thrust(t) * np.cos(theta) - weight(t, h) - drag(h, v) * np.cos(upsilon) - lift(h, v) * np.sin(upsilon))/mass(t)
+# current mass of the rocket "m" (in kg)
+def eom_a_z(t, h, v, theta, upsilon, m):
+    a_z = (thrust(t) * np.cos(theta) - weight(h, m) - drag(h, v) * np.cos(upsilon) - lift(h, v) * np.sin(upsilon))/m
     return a_z
 
 # Returns the acceleration in the y-direction of the inertial frame at:
@@ -72,38 +66,40 @@ def eom_a_z(t, h, v, theta, upsilon):
 # reference area "S" (in m^2) 
 # pitch angle "theta" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
-def eom_a_y(t, h, v, theta, upsilon):
-    a_y = (thrust(t) * np.sin(theta) - drag(h, v) * np.sin(upsilon) + lift(h, v) * np.cos(upsilon))/mass(t)
+# current mass of the rocket "m" (in kg)
+def eom_a_y(t, h, v, theta, upsilon, m):
+    a_y = (thrust(t) * np.sin(theta) - drag(h, v) * np.sin(upsilon) + lift(h, v) * np.cos(upsilon))/m
     return a_y
 
 # Returns the acceleration of the pitch angle of the inertial frame at:
+# time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
 # reference area "S" (in m^2)
 # change in pitch angle "delta_theta" (in radians)
-def eom_a_pitch(h, v, delta_theta):
-    a_pitch = (aerodynamic_LUT[v][2] * (aerodynamic_LUT[v][3] - aerodynamic_LUT[v][1]) + 0.25 * atmospheric_LUT[h][1] * S_area * d**2 * C_m_q * delta_theta)/inertia_tensor[0][0]
+def eom_a_pitch(t, h, v, theta, delta_theta, upsilon):
+    a_pitch = (aerodynamic_LUT[v][3] * lift(h, v)/aerodynamic_LUT[v][2] * (theta - upsilon) * (aerodynamic_LUT[v][3] - open_rocket_LUT[t][2]) + 0.25 * atmospheric_LUT(h)[0] * v * S_area * d**2 * C_m_q * delta_theta)/inertia_tensor[0][0]
     return a_pitch
 
 """Functions that describe each RK45 step"""
 # Returns the derivative of the state vector at the given time and state for the RK45 integrator
 # time "t" (in seconds)
-# state vector "x" containing [z, y, v_z, v_y, theta, theta_dot]
+# state vector "x" containing [y, z, v_y, v_z, theta, theta_dot, m]
 def f(t, x):
-    y, z, v_y, v_z, theta, theta_dot = x
+    y, z, v_y, v_z, theta, theta_dot, m = x
 
     v = np.sqrt(v_z**2 + v_y**2)
 
-    a_z = eom_a_z(t, z, v, theta, np.arctan2(v_y, v_z))
-    a_y = eom_a_y(t, z, v, theta, np.arctan2(v_y, v_z))
-    a_pitch = eom_a_pitch(z, v, theta)
+    a_z = eom_a_z(t, z, v, theta, np.arctan2(v_y, v_z), m)
+    a_y = eom_a_y(t, z, v, theta, np.arctan2(v_y, v_z), m)
+    a_pitch = eom_a_pitch(t, z, v, theta, theta_dot, np.arctan2(v_y, v_z))
 
     return np.array([v_y, v_z, a_y, a_z, theta_dot, a_pitch, mass_flow_rate(t)])
 
 # Returns the list of derivative approximations at the given trial point for:
-# the equation of motion "eq" (either a_z, a_y, or a_pitch)
 # the time at which the derivative is evaluated "trial_point" (in seconds)
 # the step size for the finite difference approximation "step_size" (in seconds)
+# the current state vector "state_vector" containing [y, z, v_y, v_z, theta, theta_dot, m]
 def rk_45_step(trial_point, step_size, state_vector):
     k1 = step_size * f(trial_point + step_size * b_tableau[0][0], state_vector)
     k2 = step_size * f(trial_point + step_size * b_tableau[1][0], state_vector + k1 * b_tableau[1][1])
