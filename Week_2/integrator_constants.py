@@ -57,7 +57,7 @@ b_tableau: Final = [
 
 rk45_step_constant: Final = 0.84 # The step size adjustment factor for when a potential rk45 solution is rejected due to truncation error
 
-truncation_error: Final = 1e-6 # The lower limit for accepable truncation error in the rk45 method
+truncation_error_upper: Final = 1e-3 # The upper limit for accepable truncation error in the rk45 method
 
 """Moments of inertia in each axes of rotation"""
 inertia_tensor: Final = [
