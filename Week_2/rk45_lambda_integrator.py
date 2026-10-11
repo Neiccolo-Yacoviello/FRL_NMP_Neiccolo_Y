@@ -1,4 +1,6 @@
 from integrator_constants import *
+import numpy as np
+import matplotlib.pyplot as plt
 
 # Returns the value of the derivative of the input function at:
 # initial position "x"
@@ -37,7 +39,7 @@ def check_step(b4, b5):
 # the 4th order value "b4" (used to calculate error)
 # the 5th order value "b5" (used to calculate error)
 def adjust_step(step_size, b4, b5):
-    step_size = step_size * rk45_step_constant * (truncation_error_upper / np.abs(b4 - b5))**(1/4)
+    step_size = step_size * rk45_step_constant * (truncation_error_upper / np.abs(b4 - b5))**(1/5)
     return step_size
 
 i = 0
@@ -51,7 +53,7 @@ while i < 20:
     if val:
         x += step_size
         y = errors[1]
-        print(f"Step {i + 1}: {x}, {errors[1]} \nLocal Error: {np.abs(errors[0] - errors[1])}")
+        # print(f"Step {i + 1}: {x}, {y} \nLocal Error: {np.abs(errors[0] - errors[1])}")
         step_size = adjust_step(step_size, errors[0], errors[1])
         i += 1
     else:
