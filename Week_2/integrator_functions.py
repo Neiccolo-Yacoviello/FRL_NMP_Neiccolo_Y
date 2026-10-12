@@ -12,7 +12,7 @@ def gravity(h):
 # time "t" (in seconds) where after burnout (t > 5 seconds) the thrust is zero
 def thrust(t):
     if t < 5:
-       T = open_rocket_LUT[t][1] # Retrieve thrust from LUT at time = t
+       T = thrust_LUT[t][1] # Retrieve thrust from LUT at time = t
     if t >= 5:
        T = 0 # Burnout (later will be entirely controlled by LUT)
     return T
@@ -78,7 +78,7 @@ def eom_a_y(t, h, v, theta, upsilon, m):
 # reference area "S" (in m^2)
 # change in pitch angle "delta_theta" (in radians)
 def eom_a_pitch(t, h, v, theta, delta_theta, upsilon):
-    a_pitch = (aerodynamic_LUT[v][3] * lift(h, v)/aerodynamic_LUT[v][2] * (theta - upsilon) * (aerodynamic_LUT[v][3] - open_rocket_LUT[t][2]) + 0.25 * atmospheric_LUT(h)[0] * v * S_area * d**2 * C_m_q * delta_theta)/inertia_tensor[0][0]
+    a_pitch = (aerodynamic_LUT[v][3] * lift(h, v)/aerodynamic_LUT[v][2] * (theta - upsilon) * (aerodynamic_LUT[v][3] - C_g_LUT[t][1]) + 0.25 * atmospheric_LUT(h)[0] * v * S_area * d**2 * C_m_q * delta_theta)/inertia_tensor[0][0]
     return a_pitch
 
 """Functions that describe each RK45 step"""
@@ -110,6 +110,6 @@ def rk_45_step(trial_point, step_size, state_vector):
 
     x4 = state_vector + k1 * b_tableau[6][1] + k2 * b_tableau[6][2] + k3 * b_tableau[6][3] + k4 * b_tableau[6][4] + k5 * b_tableau[6][5]
     x5 = state_vector + k1 * b_tableau[7][1] + k2 * b_tableau[7][2] + k3 * b_tableau[7][3] + k4 * b_tableau[7][4] + k5 * b_tableau[7][5] + k6 * b_tableau[7][6]
-    return x5, x5 - x4
+    return x5, x4
 
 # def check_step():
