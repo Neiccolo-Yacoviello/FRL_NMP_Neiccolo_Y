@@ -41,7 +41,7 @@ def atmospheric_LUT(h):
     rho = P / (0.2869 * (T + 273.1))    
     return rho, P, T
 
-aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_L, C_N, Z_cp]
+aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_L, Z_cp, C_N]
 
     # return np.array()
 ]
@@ -49,7 +49,7 @@ aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the a
 # Returns the interpolated thrust of the engine at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the thrust is zero
 def thrust_LUT(t):
-    if t < 3.593: # Burnout of the current motot (K700)
+    if t < 3.593: # Burnout of the current motor (K700)
         return np.interp(t, thrust_data[:, 0], thrust_data[:, 1])
     else:
         return 0
@@ -57,7 +57,7 @@ def thrust_LUT(t):
 # Returns the interpolated center of gravity of the rocket (from the nose) at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the center of gravity is constant
 def C_g_LUT(t):
-    if t < 3.593: # Burnout of the current motot (K700)
+    if t < 3.593: # Burnout of the current motor (K700)
         return np.interp(t, c_g_data[:, 0], c_g_data[:, 1])/100
     else:
         return c_g_data[-1, 1]/100  # Return the last known center of gravity
@@ -76,7 +76,15 @@ b_tableau: Final = [
 
 rk45_step_constant: Final = 0.84 # The step size adjustment factor for when a potential rk45 solution is rejected due to truncation error
 
-truncation_error_upper: Final = 1e-3 # The upper limit for accepable truncation error in the rk45 method
+rk45_max_adjust: Final = 2 # The max step size scalar allowed
+
+rk45_min_adjust: Final = 0.5 # The min step size scalar allowed
+
+atol: Final = 1e-4 # The allowable absolute error for any value
+
+atol_all: Final = (1e-3, 1e-3, 1e-6, 1e-6, 1e-3, 1e-3, 1e-6) #The allowable absolute error for each value in the state vector
+
+rtol: Final = 1e-3 # The allowable relative error for any value
 
 """Moments of inertia in each axes of rotation"""
 inertia_tensor: Final = [

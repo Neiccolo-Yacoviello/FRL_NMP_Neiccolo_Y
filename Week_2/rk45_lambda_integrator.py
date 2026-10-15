@@ -28,9 +28,8 @@ def rk_45_step(x, y, step_size, f):
 # Returns the state of the system relative to the solution for:
 # some 4th order value "b4"
 # some 5th order value "b5"
-# where "0" = acceptable truncation error, "1" = truncation error too high, and "2" = truncation error too low
 def check_step(b4, b5):
-    if np.abs(b4 - b5) < truncation_error_upper:
+    if np.abs(b4 - b5) < atol:
         return True
     return False
 
@@ -39,21 +38,24 @@ def check_step(b4, b5):
 # the 4th order value "b4" (used to calculate error)
 # the 5th order value "b5" (used to calculate error)
 def adjust_step(step_size, b4, b5):
-    step_size = step_size * rk45_step_constant * (truncation_error_upper / np.abs(b4 - b5))**(1/5)
+    error = np.abs(b4 - b5)
+    if error == 0:
+        return step_size
+    step_size = step_size * rk45_step_constant * (atol / error)**(1/5)
     return step_size
 
 i = 0
 x = 0 # initial x value
 y = 0.5 # initial y value
 step_size = 0.05 # initial step size
-lambda_func = lambda x, y: y - x**2 + 1
+lambda_func = lambda x, y: y + x
 while i < 20:
     errors = rk_45_step(x, y, step_size, lambda_func)
     val = check_step(errors[0], errors[1])
     if val:
         x += step_size
         y = errors[1]
-        # print(f"Step {i + 1}: {x}, {y} \nLocal Error: {np.abs(errors[0] - errors[1])}")
+        print(f"Step {i + 1}: {x}, {y} \nLocal Error: {np.abs(errors[0] - errors[1])}\n")
         step_size = adjust_step(step_size, errors[0], errors[1])
         i += 1
     else:
