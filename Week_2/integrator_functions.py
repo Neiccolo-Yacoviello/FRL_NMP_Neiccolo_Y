@@ -27,18 +27,41 @@ def q(h, v):
     Q = 0.5 * atmospheric_LUT(h)[0] * v**2
     return Q
 
+# Returns the mach number of the rocket at:
+# height "h" (in meters)
+# velocity "v" (in m/s)
+def get_mach(h, v):
+    temp = atmospheric_LUT(h)[2] + 273.15
+    local_mach = np.sqrt(temp * air_specific_gas_constant * air_specific_heat_ratio)
+    return np.abs(v)/local_mach
+
+# Returns the angle of attack of the rocket at:
+# the pitch of the rocket "theta"
+# the angle of the velocity vector "upsilon"
+def get_AoA(theta, upsilon):
+    return theta - upsilon
+
+# Returns the coeffcient of lift (based on the Normal force coefficient and Axial force coefficient) at:
+# height "h" (in meters)
+# velocity "v" (in m/s)
+# the pitch of the rocket "theta"
+# the angle of the velocity vector "upsilon"
+def get_C_L(h, v, theta, upsilon):
+    AoA = get_AoA(theta, upsilon)
+    C_L = aerodynamic_LUT(get_mach(h, v))[3] * np.cos(AoA) - aerodynamic_LUT(get_mach(h, v))[2] * np.sin(AoA)
+
 # Returns the magnitude of the drag force in the inertial frame at:
 # height "h" (in meters)
 # velocity "v" (in m/s)
 def drag(h, v):
-    drag = q(h, v) * aerodynamic_LUT[v][1] * S_area
+    drag = q(h, v) * aerodynamic_LUT(get_mach(h, v))[1] * S_area
     return drag
     
 # Returns the magnitude of the lift force in the inertial frame at:
 # height "h" (in meters)
 # velocity "v" (in m/s)
-def lift(h, v):
-    lift = q(h, v) * aerodynamic_LUT[v][2] * S_area
+def lift(h, v, theta, upsilon):
+    lift = q(h, v) * get_C_L(h, v, theta, upsilon) * S_area
     return lift
 
 # Returns the weight of the rocket at:
@@ -57,7 +80,7 @@ def weight(h, m):
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
 def eom_a_z(t, h, v, theta, upsilon, m):
-    a_z = (thrust(t) * np.cos(theta) - weight(h, m) - drag(h, v) * np.cos(upsilon) - lift(h, v) * np.sin(upsilon))/m
+    a_z = (thrust(t) * np.cos(theta) - weight(h, m) - drag(h, v) * np.cos(upsilon) - lift(h, v, theta, upsilon) * np.sin(upsilon))/m
     return a_z
 
 # Returns the acceleration in the y-direction of the inertial frame at:
@@ -68,7 +91,7 @@ def eom_a_z(t, h, v, theta, upsilon, m):
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
 def eom_a_y(t, h, v, theta, upsilon, m):
-    a_y = (thrust(t) * np.sin(theta) - drag(h, v) * np.sin(upsilon) + lift(h, v) * np.cos(upsilon))/m
+    a_y = (thrust(t) * np.sin(theta) - drag(h, v) * np.sin(upsilon) + lift(h, v, theta, upsilon) * np.cos(upsilon))/m
     return a_y
 
 # Returns the acceleration of the pitch angle of the inertial frame at:
@@ -78,11 +101,8 @@ def eom_a_y(t, h, v, theta, upsilon, m):
 # change in pitch angle "theta_dot" (in radians)
 def eom_a_pitch(t, h, v, theta, theta_dot, upsilon):
     Q = q(h, v)
-    N = Q * S_area * aerodynamic_LUT[v][4] * (theta - upsilon)
-    if v != 0:
-        a_pitch = (N * (aerodynamic_LUT[v][3] - C_g_LUT[t][1]) + (Q * S_area * d**2 * C_m_q * theta_dot)/(2 * v))/inertia_tensor[0][0]
-    else:
-        a_pitch = np.pi/2
+    N = Q * S_area * aerodynamic_LUT(get_mach(h, v))[2] * get_AoA(theta, upsilon)
+    a_pitch = (N * (aerodynamic_LUT(get_mach(h, v))[0] - C_g_LUT[t][1]) + (Q * S_area * d**2 * pitch_damp * theta_dot)/(2 * v))/inertia_tensor[0][0]
     return a_pitch
 
 """Functions that describe each RK45 step"""
@@ -143,3 +163,14 @@ def adjust_step(step_size, normalized_error):
         step_adjust = rk45_step_constant * normalized_error ** (-1/5) # Modifies the step based on the current amount of normalized error
     step_adjust = min(rk45_max_adjust, max(rk45_min_adjust, step_adjust))
     return step_size * step_adjust # Add something in the integrator stack to check for too small or too large of step sizes
+
+# Returns the stage of flight of the rocket for:
+# time "t" (in seconds)
+# height "h" (in meters)
+# velocity "v" (in m/s)
+def check_phase(t, h, v):
+    if t <= 3.593:
+        return "boost"
+    elif get_mach(h, v) > 0.012:
+        return "coast"
+    return "chute"

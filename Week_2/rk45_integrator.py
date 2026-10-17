@@ -15,3 +15,5 @@ print(f"Mass flow at t=2.9: {mass_flow_rate(2.9)}")
 print(f"Center of gravity at t=2.0: {C_g_LUT(2.0)}")
 
 print(f"Dynamic Pressure (Q) at h=1000, v=250: {q(1000, 250)}")
+
+print(f"Aerodynamic info [Z_cp, C_d, C_A, C_N, v] at mach=0.2: {aerodynamic_LUT(0.2)}")

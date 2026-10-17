@@ -11,22 +11,35 @@ R_Earth: Final = 6371008 # The mean radius of the Earth in meters
 
 I_sp: Final = 2284 # The specific impulse of the rocket engine in Newton seconds
 
+air_specific_heat_ratio: Final = 1.4 # The standard specific heat ratio for dry air
+
+air_specific_gas_constant: Final = 287.05 # The specific gas constant for dry air
+
 m0: Final = 4.637 # The initial mass of the rocket in kilograms
 
 d: Final = 0.0762 # The diameter of the rocket in meters
 
 L: Final = 1.56 # The length of the rocket in meters
 
-nose_C_p: Final = 1.12 # The center of pressure measued from the nose of the rocket in meters
-
 S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
 
-C_m_q: Final = -0.5 # The pitch dampening coefficient
+pitch_damp: Final = -0.00005 # The pitch dampening coefficient
 
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust.csv", delimiter=',', skiprows=1) # The raw thrust data
 
 c_g_data: Final = np.loadtxt(DATA_DIR / "c_g.csv", delimiter=',', skiprows=1) # The raw cg data
 
+raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics.csv", delimiter=',', skiprows=1) # The raw aerodynamics data
+burnout = raw_A_data[:, 4].argmax() # Largest mach value
+chute = np.argmax(raw_A_data[:, 1] > 10) # Jump in the drag coefficient
+v_data = raw_A_data[:, 4]
+aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice
+    "boost": raw_A_data[:burnout + 1],
+    "coast": raw_A_data[burnout:chute],
+    "descent": raw_A_data[chute:],
+}
+
+lift_data: Final
 
 """EOM Look Up Tables"""
 # Returns the atmospheric properties (density, pressure, and temperature) at:
@@ -41,10 +54,11 @@ def atmospheric_LUT(h):
     rho = P / (0.2869 * (T + 273.1))    
     return rho, P, T
 
-aerodynamic_LUT: Final = [ # For some velocity "v" (in m/s / mach number), the aerodynamic info is given by [v, C_d, C_L, Z_cp, C_N]
-
-    # return np.array()
-]
+# Returns the aerodynamic info is given by [Z_cp, C_d, C_A, C_N, v]
+# some velocity "v" (in mach number)
+def aerodynamic_LUT(v, phase):
+    data = [np.interp(v, v_data, aerodynamics_data(phase)[:, i]) for i in range(aerodynamics_data(phase).shape[1])]
+    return data
 
 # Returns the interpolated thrust of the engine at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the thrust is zero
