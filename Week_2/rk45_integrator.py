@@ -1,4 +1,5 @@
 from integrator_functions import *
+from typing import Final
 
 print(f"Gravity at h=3000: {gravity(3000)}")
 
@@ -16,4 +17,10 @@ print(f"Center of gravity at t=2.0: {C_g_LUT(2.0)}")
 
 print(f"Dynamic Pressure (Q) at h=1000, v=250: {q(1000, 250)}")
 
-print(f"Aerodynamic info [Z_cp, C_d, C_A, C_N, v] at mach=0.2: {aerodynamic_LUT(0.2)}")
+print(f"Aerodynamic info [Z_cp, C_d, C_A, C_N]: {aerodynamic_LUT(3, get_mach(1000, 250))}")
+
+print(f"Coefficient of Lift: {get_C_L(3, 1000, 250, 0.1, 0.2)}")
+
+print(f"Lift: {lift(3, 1000, 250, 0.1, 0.2)}")
+
+print(f"Drag: {drag(3, 1000, 250)}")

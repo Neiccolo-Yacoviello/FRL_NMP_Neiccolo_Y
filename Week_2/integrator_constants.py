@@ -25,6 +25,8 @@ S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
 
 pitch_damp: Final = -0.00005 # The pitch dampening coefficient
 
+burnout_time: Final = 3.593
+
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust.csv", delimiter=',', skiprows=1) # The raw thrust data
 
 c_g_data: Final = np.loadtxt(DATA_DIR / "c_g.csv", delimiter=',', skiprows=1) # The raw cg data
@@ -32,14 +34,13 @@ c_g_data: Final = np.loadtxt(DATA_DIR / "c_g.csv", delimiter=',', skiprows=1) # 
 raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics.csv", delimiter=',', skiprows=1) # The raw aerodynamics data
 burnout = raw_A_data[:, 4].argmax() # Largest mach value
 chute = np.argmax(raw_A_data[:, 1] > 10) # Jump in the drag coefficient
-v_data = raw_A_data[:, 4]
 aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice
-    "boost": raw_A_data[:burnout + 1],
-    "coast": raw_A_data[burnout:chute],
-    "descent": raw_A_data[chute:],
+    "boost": raw_A_data[:burnout + 1][np.argsort(raw_A_data[:burnout + 1, 4])],
+    "coast": raw_A_data[burnout:chute][np.argsort(raw_A_data[burnout:chute, 4])],
+    "descent": raw_A_data[chute:][np.argsort(raw_A_data[chute:, 4])],
 }
 
-lift_data: Final
+chute_deployed = False
 
 """EOM Look Up Tables"""
 # Returns the atmospheric properties (density, pressure, and temperature) at:
@@ -56,14 +57,21 @@ def atmospheric_LUT(h):
 
 # Returns the aerodynamic info is given by [Z_cp, C_d, C_A, C_N, v]
 # some velocity "v" (in mach number)
-def aerodynamic_LUT(v, phase):
-    data = [np.interp(v, v_data, aerodynamics_data(phase)[:, i]) for i in range(aerodynamics_data(phase).shape[1])]
-    return data
+def aerodynamic_LUT(t, v):
+    phase = "boost"
+    if t > burnout_time: 
+        phase = "coast"
+        if v < 0.012 or chute_deployed:
+            phase = "chute"
+            chute_deployed = True
+    data = aerodynamics_data[phase]
+    v_data = data[:, 4]
+    return [float(np.interp(v, v_data, data[:, i])) for i in range(data.shape[1] - 1)]
 
 # Returns the interpolated thrust of the engine at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the thrust is zero
 def thrust_LUT(t):
-    if t < 3.593: # Burnout of the current motor (K700)
+    if t < burnout_time: # Burnout of the current motor (K700)
         return np.interp(t, thrust_data[:, 0], thrust_data[:, 1])
     else:
         return 0
@@ -71,7 +79,7 @@ def thrust_LUT(t):
 # Returns the interpolated center of gravity of the rocket (from the nose) at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the center of gravity is constant
 def C_g_LUT(t):
-    if t < 3.593: # Burnout of the current motor (K700)
+    if t < burnout_time: # Burnout of the current motor (K700)
         return np.interp(t, c_g_data[:, 0], c_g_data[:, 1])/100
     else:
         return c_g_data[-1, 1]/100  # Return the last known center of gravity
