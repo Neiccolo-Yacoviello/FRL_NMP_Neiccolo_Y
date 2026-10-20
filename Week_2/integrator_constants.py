@@ -108,9 +108,9 @@ atol_all: Final = (1e-3, 1e-3, 1e-6, 1e-6, 1e-3, 1e-3, 1e-6) #The allowable abso
 
 rtol: Final = 1e-3 # The allowable relative error for any value
 
-"""Moments of inertia in each axes of rotation"""
-inertia_tensor: Final = [
-    ["""I_xx""", 0.0, 0.0],
-    [0.0, """I_yy""", 0.0],
-    [0.0, 0.0, """I_zz"""]
-]
+"""Moments of inertia in each axes of rotation (only x included)"""
+def get_inertial_moment(t): # Changes during the burn
+    inertial_moment_x  = 0.6202 # Max exported from OR
+    if t < burnout_time:
+        inertial_moment_x = inertial_moment_x - (0.1780 * t / burnout_time) # .1780 is the difference between the max and min exported from OR
+    return inertial_moment_x

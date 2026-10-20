@@ -36,13 +36,15 @@ def get_mach(h, v):
     return np.abs(v)/local_mach
 
 # Returns the coeffcient of lift (based on the Normal force coefficient and Axial force coefficient) at:
+# time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
-# the pitch of the rocket "theta"
+# the pitch of the rocket "pitch"
 # the angle of the velocity vector "upsilon"
-def get_C_L(t, h, v, theta, upsilon):
-    AoA = theta - upsilon
-    C_L = aerodynamic_LUT(t, get_mach(h, v))[3] * np.cos(AoA) - aerodynamic_LUT(t, get_mach(h, v))[2] * np.sin(AoA)
+def get_C_L(t, h, v, pitch, upsilon):
+    AoA = pitch - upsilon
+    mach = get_mach(h, v)
+    C_L = aerodynamic_LUT(t, mach)[3] * np.cos(AoA) - aerodynamic_LUT(t, mach)[2] * np.sin(AoA)
     return C_L
 
 # Returns the magnitude of the drag force in the inertial frame at:
@@ -53,15 +55,18 @@ def drag(t, h, v):
     return drag
     
 # Returns the magnitude of the lift force in the inertial frame at:
+# time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
-def lift(t, h, v, theta, upsilon):
-    lift = q(h, v) * get_C_L(t, h, v, theta, upsilon) * S_area
+# the pitch of the rocket "pitch"
+# the angle of the velocity vector "upsilon"
+def lift(t, h, v, pitch, upsilon):
+    lift = q(h, v) * get_C_L(t, h, v, pitch, upsilon) * S_area
     return float(lift)
 
 # Returns the weight of the rocket at:
 # height "h" (in meters)
-# time "t" (in seconds)
+# mass "m" (in kg)
 def weight(h, m):
     weight = m * gravity(h)
     return weight
@@ -71,54 +76,57 @@ def weight(h, m):
 # time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
-# pitch angle "theta" (in radians measured from the vertical)
+# pitch angle "pitch" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
-def eom_a_z(t, h, v, theta, upsilon, m):
-    a_z = (thrust(t) * np.cos(theta) - weight(h, m) - drag(t, h, v) * np.cos(upsilon) - lift(t, h, v, theta, upsilon) * np.sin(upsilon))/m
+def eom_a_z(t, h, v, pitch, upsilon, m):
+    a_z = (thrust(t) * np.cos(pitch) - weight(h, m) - drag(t, h, v) * np.cos(upsilon) - lift(t, h, v, pitch, upsilon) * np.sin(upsilon))/m
     return a_z
 
 # Returns the acceleration in the y-direction of the inertial frame at:
 # time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
-# pitch angle "theta" (in radians measured from the vertical)
+# pitch angle "pitch" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
-def eom_a_y(t, h, v, theta, upsilon, m):
-    a_y = (thrust(t) * np.sin(theta) - drag(t, h, v) * np.sin(upsilon) + lift(t, h, v, theta, upsilon) * np.cos(upsilon))/m
+def eom_a_y(t, h, v, pitch, upsilon, m):
+    a_y = (thrust(t) * np.sin(pitch) - drag(t, h, v) * np.sin(upsilon) + lift(t, h, v, pitch, upsilon) * np.cos(upsilon))/m
     return a_y
 
 # Returns the acceleration of the pitch angle of the inertial frame at:
 # time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
-# change in pitch angle "theta_dot" (in radians)
-def eom_a_pitch(t, h, v, theta, theta_dot, upsilon):
+# pitch angle "pitch" (in radians measured from the vertical)
+# change in pitch angle "v_pitch" (in radians)
+# angle of the velocity vector "upsilon" (in radians measured from the vertical)
+def eom_a_pitch(t, h, v, pitch, v_pitch, upsilon):
     Q = q(h, v)
-    N = Q * S_area * aerodynamic_LUT(t, get_mach(h, v))[2] * (theta - upsilon)
-    a_pitch = (N * (aerodynamic_LUT(t, get_mach(h, v))[0] - C_g_LUT[t][1]) + (Q * S_area * d**2 * pitch_damp * theta_dot)/(2 * v))/inertia_tensor[0][0]
+    mach = get_mach(h, v)
+    N = Q * S_area * aerodynamic_LUT(t, mach)[3] * (pitch - upsilon)
+    a_pitch = (N * (aerodynamic_LUT(t, mach)[0]/100 - C_g_LUT(t)) + (Q * S_area * d**2 * pitch_damp * v_pitch)/(2 * v))/get_inertial_moment(t)
     return a_pitch
 
 """Functions that describe each RK45 step"""
 # Returns the derivative of the state vector at the given time and state for the RK45 integrator
 # time "t" (in seconds)
-# state vector "x" containing [y, z, v_y, v_z, theta, theta_dot, m]
+# state vector "x" containing [y, z, v_y, v_z, pitch, v_pitch, m]
 def f(t, x):
-    y, z, v_y, v_z, theta, theta_dot, m = x
+    y, z, v_y, v_z, pitch, v_pitch, m = x
 
     v = np.sqrt(v_z**2 + v_y**2)
 
-    a_y = eom_a_y(t, z, v, theta, np.arctan2(v_y, v_z), m)
-    a_z = eom_a_z(t, z, v, theta, np.arctan2(v_y, v_z), m)
-    a_pitch = eom_a_pitch(t, z, v, theta, theta_dot, np.arctan2(v_y, v_z))
+    a_y = eom_a_y(t, z, v, pitch, np.arctan2(v_y, v_z), m)
+    a_z = eom_a_z(t, z, v, pitch, np.arctan2(v_y, v_z), m)
+    a_pitch = eom_a_pitch(t, z, v, pitch, v_pitch, np.arctan2(v_y, v_z))
 
-    return np.array([v_y, v_z, a_y, a_z, theta_dot, a_pitch, mass_flow_rate(t)])
+    return np.array([v_y, v_z, a_y, a_z, v_pitch, a_pitch, mass_flow_rate(t)])
 
 # Returns the list of approximations at the given trial point for:
 # the time at which the derivative is evaluated "trial_point" (in seconds)
 # the step size for the finite difference approximation "step_size" (in seconds)
-# the current state vector "state_vector" containing [y, z, v_y, v_z, theta, theta_dot, m] in a numpy array
+# the current state vector "state_vector" containing [y, z, v_y, v_z, pitch, v_pitch, m] in a numpy array
 def rk_45_step(trial_point, step_size, state_vector):
     k1 = step_size * f(trial_point + step_size * b_tableau[0][0], state_vector)
     k2 = step_size * f(trial_point + step_size * b_tableau[1][0], state_vector + k1 * b_tableau[1][1])
@@ -158,14 +166,3 @@ def adjust_step(step_size, normalized_error):
         step_adjust = rk45_step_constant * normalized_error ** (-1/5) # Modifies the step based on the current amount of normalized error
     step_adjust = min(rk45_max_adjust, max(rk45_min_adjust, step_adjust))
     return step_size * step_adjust # Add something in the integrator stack to check for too small or too large of step sizes
-
-# Returns the stage of flight of the rocket for:
-# time "t" (in seconds)
-# height "h" (in meters)
-# velocity "v" (in m/s)
-def check_phase(t, h, v):
-    if t <= 3.593:
-        return "boost"
-    elif get_mach(h, v) > 0.012:
-        return "coast"
-    return "chute"
