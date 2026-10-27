@@ -1,32 +1,29 @@
 from integrator_functions import *
-from typing import Final
+from integrator_constants import *
 
-print(f"Gravity at h=3000: {gravity(3000)}")
+initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0]) # the beginning state vector containing [y, z, v_y, v_z, pitch, v_pitch, m]
 
-print(f"Density at h=3000: {atmospheric_LUT(3000)[0]}")
-print(f"Pressure at h=3000: {atmospheric_LUT(3000)[1]}")
-print(f"Temperature at h=3000: {atmospheric_LUT(3000)[2]}")
+def model(step, initial):
+    state_vector = initial
+    previous_state = initial
+    step_size = step
+    time = 0
+    while True:
+        diff = rk_45_step(time, step_size, state_vector) # Contains the b4 and b5 evaluations of the step
+        checked_step = check_step(diff[0], diff[1], previous_state) # Contains the step verification and the error of the step
+        if checked_step[0]:
+            previous_state = state_vector
+            state_vector = diff[1]
+            print(f"Z: {round(state_vector[1], 3)}, V_Z: {round(state_vector[3], 3)}, V_Y: {round(state_vector[2], 3)}, Pitch: {round(state_vector[4], 3)}, Mass: {round(state_vector[6], 3)}, t: {round(time, 4)}")
+            time += step_size
 
-print(f"Weight at h=3000: {weight(3000, 4.1)}")
+        step_size = adjust_step(step_size, checked_step[1])
 
-print(f"Thrust at t=3.0: {thrust_LUT(3.0)}")
+        if state_vector[1] < 0:
+            print("Simulation ended; Rocket touched down.")
+            break
+        elif np.abs(state_vector[4]) > 30 and time < 25: # Temporary (might remove later)
+            print("Simulation ended; Rocket over-rotated.")
+            break
 
-print(f"Mass flow at t=2.9: {mass_flow_rate(2.9)}")
-
-print(f"Center of gravity at t=2.0: {C_g_LUT(2.0)}")
-
-print(f"Dynamic Pressure (Q) at h=1000, v=250: {q(1000, 250)}")
-
-print(f"Aerodynamic info [Z_cp, C_d, C_A, C_N]: {aerodynamic_LUT(3, get_mach(1000, 250))}")
-
-print(f"Coefficient of Lift: {get_C_L(3, 1000, 250, 0.1, 0.2)}")
-
-print(f"Lift: {lift(3, 1000, 250, 0.1, 0.2)}")
-
-print(f"Drag: {drag(3, 1000, 250)}")
-
-print(f"Acceleration in \"z\": {eom_a_z(3, 1000, 250, 0.1, 0.2, 4.1)}")
-
-print(f"Acceleration in \"y\": {eom_a_y(3, 1000, 250, 0.1, 0.2, 4.1)}")
-
-print(f"Acceleration in \"pitch\": {eom_a_pitch(3, 1000, 250, 0.1, 0.01, 0.2)}")
+model(0.01, initial_conditions)

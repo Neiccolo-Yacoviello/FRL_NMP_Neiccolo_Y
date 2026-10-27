@@ -8,16 +8,10 @@ def gravity(h):
     g = g_Earth_S * (R_Earth / (R_Earth + h))**2
     return g
 
-# Returns the thrust of the rocket engine at:
-# time "t" (in seconds) where after burnout (t > 5 seconds) the thrust is zero
-def thrust(t):
-    T = thrust_LUT(t)
-    return T
-
 # Returns the mass flow rate of the rocket at:
 # time "t" (in seconds)
 def mass_flow_rate(t):
-    m_dot = -thrust(t) / (g_Earth_S * I_sp)
+    m_dot = -thrust_LUT(t) / (I_sp * (m0 - m_dry))
     return m_dot
 
 # Returns the dynamic pressure on the rocket at:
@@ -42,9 +36,12 @@ def get_mach(h, v):
 # the pitch of the rocket "pitch"
 # the angle of the velocity vector "upsilon"
 def get_C_L(t, h, v, pitch, upsilon):
-    AoA = pitch - upsilon
+    AoA = np.arctan2(np.sin(pitch - upsilon), np.cos(pitch - upsilon))
     mach = get_mach(h, v)
     C_L = aerodynamic_LUT(t, mach)[3] * np.cos(AoA) - aerodynamic_LUT(t, mach)[2] * np.sin(AoA)
+          # Coefficient of Normal Force               # Coefficient of Axial Force
+    if np.isnan(C_L):
+        C_L = 0
     return C_L
 
 # Returns the magnitude of the drag force in the inertial frame at:
@@ -62,7 +59,7 @@ def drag(t, h, v):
 # the angle of the velocity vector "upsilon"
 def lift(t, h, v, pitch, upsilon):
     lift = q(h, v) * get_C_L(t, h, v, pitch, upsilon) * S_area
-    return float(lift)
+    return lift
 
 # Returns the weight of the rocket at:
 # height "h" (in meters)
@@ -80,7 +77,7 @@ def weight(h, m):
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
 def eom_a_z(t, h, v, pitch, upsilon, m):
-    a_z = (thrust(t) * np.cos(pitch) - weight(h, m) - drag(t, h, v) * np.cos(upsilon) - lift(t, h, v, pitch, upsilon) * np.sin(upsilon))/m
+    a_z = (thrust_LUT(t) * np.cos(pitch) - weight(h, m) - drag(t, h, v) * np.cos(upsilon) - lift(t, h, v, pitch, upsilon) * np.sin(upsilon))/m
     return a_z
 
 # Returns the acceleration in the y-direction of the inertial frame at:
@@ -91,7 +88,7 @@ def eom_a_z(t, h, v, pitch, upsilon, m):
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
 def eom_a_y(t, h, v, pitch, upsilon, m):
-    a_y = (thrust(t) * np.sin(pitch) - drag(t, h, v) * np.sin(upsilon) + lift(t, h, v, pitch, upsilon) * np.cos(upsilon))/m
+    a_y = (thrust_LUT(t) * np.sin(pitch) - drag(t, h, v) * np.sin(upsilon) + lift(t, h, v, pitch, upsilon) * np.cos(upsilon))/m
     return a_y
 
 # Returns the acceleration of the pitch angle of the inertial frame at:
@@ -104,8 +101,14 @@ def eom_a_y(t, h, v, pitch, upsilon, m):
 def eom_a_pitch(t, h, v, pitch, v_pitch, upsilon):
     Q = q(h, v)
     mach = get_mach(h, v)
-    N = Q * S_area * aerodynamic_LUT(t, mach)[3] * (pitch - upsilon)
-    a_pitch = (N * (aerodynamic_LUT(t, mach)[0]/100 - C_g_LUT(t)) + (Q * S_area * d**2 * pitch_damp * v_pitch)/(2 * v))/get_inertial_moment(t)
+    N = Q * S_area * aerodynamic_LUT(t, mach)[3]
+    moment = N * (aerodynamic_LUT(t, mach)[0] - C_g_LUT(t))/100
+    if np.isnan(moment):
+        moment = 0.0
+    if v == 0:
+        a_pitch = moment/(get_inertial_moment(t))
+    else:
+        a_pitch = (moment + (Q * S_area * d**2 * pitch_damp * v_pitch)/(2 * v))/(get_inertial_moment(t))
     return a_pitch
 
 """Functions that describe each RK45 step"""
@@ -117,9 +120,11 @@ def f(t, x):
 
     v = np.sqrt(v_z**2 + v_y**2)
 
-    a_y = eom_a_y(t, z, v, pitch, np.arctan2(v_y, v_z), m)
-    a_z = eom_a_z(t, z, v, pitch, np.arctan2(v_y, v_z), m)
-    a_pitch = eom_a_pitch(t, z, v, pitch, v_pitch, np.arctan2(v_y, v_z))
+    upsilon = np.arctan2(v_y, v_z)
+
+    a_y = eom_a_y(t, z, v, pitch, upsilon, m)
+    a_z = eom_a_z(t, z, v, pitch, upsilon, m)
+    a_pitch = eom_a_pitch(t, z, v, pitch, v_pitch, upsilon)
 
     return np.array([v_y, v_z, a_y, a_z, v_pitch, a_pitch, mass_flow_rate(t)])
 

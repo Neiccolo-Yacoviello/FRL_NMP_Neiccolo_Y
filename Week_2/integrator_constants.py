@@ -15,23 +15,23 @@ air_specific_heat_ratio: Final = 1.4 # The standard specific heat ratio for dry 
 
 air_specific_gas_constant: Final = 287.05 # The specific gas constant for dry air
 
-m0: Final = 4.637 # The initial mass of the rocket in kilograms
+m0: Final = 4.630 # The initial mass of the rocket in kilograms
+
+m_dry: Final = 3.338 # The mass of the rocket after its burn in kilograms
 
 d: Final = 0.0762 # The diameter of the rocket in meters
-
-L: Final = 1.56 # The length of the rocket in meters
 
 S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
 
 pitch_damp: Final = -0.00005 # The pitch dampening coefficient
 
-burnout_time: Final = 3.593
+burnout_time: Final = 3.593 # The time at which the motor burns out
 
-thrust_data: Final = np.loadtxt(DATA_DIR / "thrust.csv", delimiter=',', skiprows=1) # The raw thrust data
+thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data
 
-c_g_data: Final = np.loadtxt(DATA_DIR / "c_g.csv", delimiter=',', skiprows=1) # The raw cg data
+c_g_data: Final = np.loadtxt(DATA_DIR / "c_g(updated_10_26).csv", delimiter=',', skiprows=1) # The raw cg data
 
-raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics.csv", delimiter=',', skiprows=1) # The raw aerodynamics data
+raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics(updated_10_26).csv", delimiter=',', skiprows=1) # The raw aerodynamics data
 burnout = raw_A_data[:, 4].argmax() # Largest mach value
 chute = np.argmax(raw_A_data[:, 1] > 10) # Jump in the drag coefficient
 aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice
@@ -39,8 +39,6 @@ aerodynamics_data: Final = { # Describes the main phases of flight to pull aero 
     "coast": raw_A_data[burnout:chute][np.argsort(raw_A_data[burnout:chute, 4])],
     "descent": raw_A_data[chute:][np.argsort(raw_A_data[chute:, 4])],
 }
-
-chute_deployed = False
 
 """EOM Look Up Tables"""
 # Returns the atmospheric properties (density, pressure, and temperature) at:
@@ -61,9 +59,10 @@ def aerodynamic_LUT(t, v):
     phase = "boost"
     if t > burnout_time: 
         phase = "coast"
-        if v < 0.012 or chute_deployed:
-            phase = "chute"
-            chute_deployed = True
+        if v < 0.012:
+            count += 1
+            if count >= 2:
+                phase = "chute"
     data = aerodynamics_data[phase]
     v_data = data[:, 4]
     return [float(np.interp(v, v_data, data[:, i])) for i in range(data.shape[1] - 1)]
@@ -82,7 +81,7 @@ def C_g_LUT(t):
     if t < burnout_time: # Burnout of the current motor (K700)
         return np.interp(t, c_g_data[:, 0], c_g_data[:, 1])/100
     else:
-        return c_g_data[-1, 1]/100  # Return the last known center of gravity
+        return c_g_data[-1, 1]  # Return the last known center of gravity
 
 """RK45 Constants"""
 b_tableau: Final = [
@@ -104,13 +103,13 @@ rk45_min_adjust: Final = 0.5 # The min step size scalar allowed
 
 atol: Final = 1e-4 # The allowable absolute error for any value
 
-atol_all: Final = (1e-3, 1e-3, 1e-6, 1e-6, 1e-3, 1e-3, 1e-6) #The allowable absolute error for each value in the state vector
+atol_all: Final = (1e-3, 1e-3, 1e-6, 1e-6, 1e-3, 1e-3, 1e-6) # The allowable absolute error for each value in the state vector
 
 rtol: Final = 1e-3 # The allowable relative error for any value
 
 """Moments of inertia in each axes of rotation (only x included)"""
 def get_inertial_moment(t): # Changes during the burn
-    inertial_moment_x  = 0.6202 # Max exported from OR
+    inertial_moment_x  = 0.4422 # Max exported from OR
     if t < burnout_time:
-        inertial_moment_x = inertial_moment_x - (0.1780 * t / burnout_time) # .1780 is the difference between the max and min exported from OR
+        return inertial_moment_x + (0.1780 * (1 - t / burnout_time)) # .1780 is the difference between the max and min exported from OR
     return inertial_moment_x
