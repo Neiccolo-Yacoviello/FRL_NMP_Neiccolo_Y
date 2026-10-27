@@ -11,7 +11,7 @@ def gravity(h):
 # Returns the mass flow rate of the rocket at:
 # time "t" (in seconds)
 def mass_flow_rate(t):
-    m_dot = -thrust_LUT(t) / (I_sp * (m0 - m_dry))
+    m_dot = -(thrust_LUT(t) * (m0 - m_dry))/ I_sp
     return m_dot
 
 # Returns the dynamic pressure on the rocket at:
@@ -29,6 +29,14 @@ def get_mach(h, v):
     local_mach = np.sqrt(temp * air_specific_gas_constant * air_specific_heat_ratio)
     return np.abs(v)/local_mach
 
+# Returns the Normal Force coeffcient of the rocket at:
+# the pitch of the rocket "pitch"
+# the angle of the velocity vector "upsilon"
+def get_C_N(pitch, upsilon):
+    AoA = np.arctan2(np.sin(pitch - upsilon), np.cos(pitch - upsilon))
+    C_N = C_Na * AoA
+    return C_N
+
 # Returns the coeffcient of lift (based on the Normal force coefficient and Axial force coefficient) at:
 # time "t" (in seconds)
 # height "h" (in meters)
@@ -38,8 +46,7 @@ def get_mach(h, v):
 def get_C_L(t, h, v, pitch, upsilon):
     AoA = np.arctan2(np.sin(pitch - upsilon), np.cos(pitch - upsilon))
     mach = get_mach(h, v)
-    C_L = aerodynamic_LUT(t, mach)[3] * np.cos(AoA) - aerodynamic_LUT(t, mach)[2] * np.sin(AoA)
-          # Coefficient of Normal Force               # Coefficient of Axial Force
+    C_L = get_C_N(pitch, upsilon) * np.cos(AoA) - aerodynamic_LUT(t, mach)[2] * np.sin(AoA)
     if np.isnan(C_L):
         C_L = 0
     return C_L
@@ -101,8 +108,8 @@ def eom_a_y(t, h, v, pitch, upsilon, m):
 def eom_a_pitch(t, h, v, pitch, v_pitch, upsilon):
     Q = q(h, v)
     mach = get_mach(h, v)
-    N = Q * S_area * aerodynamic_LUT(t, mach)[3]
-    moment = N * (aerodynamic_LUT(t, mach)[0] - C_g_LUT(t))/100
+    N = Q * S_area * get_C_N(pitch, upsilon)
+    moment = N * (C_g_LUT(t) - aerodynamic_LUT(t, mach)[0])/100
     if np.isnan(moment):
         moment = 0.0
     if v == 0:

@@ -8,6 +8,7 @@ def model(step, initial):
     previous_state = initial
     step_size = step
     time = 0
+    state = "Pad"
     while True:
         diff = rk_45_step(time, step_size, state_vector) # Contains the b4 and b5 evaluations of the step
         checked_step = check_step(diff[0], diff[1], previous_state) # Contains the step verification and the error of the step
@@ -18,12 +19,19 @@ def model(step, initial):
             time += step_size
 
         step_size = adjust_step(step_size, checked_step[1])
+    
+        if time < burnout_time:
+            state = "boost"
+        elif time > burnout_time:
+            state = "coast"
+        elif state_vector[3] < 0:
+            state = "descent"
 
         if state_vector[1] < 0:
             print("Simulation ended; Rocket touched down.")
             break
-        elif np.abs(state_vector[4]) > 30 and time < 25: # Temporary (might remove later)
+        elif np.abs(state_vector[4]) > 30 and time < burnout_time:
             print("Simulation ended; Rocket over-rotated.")
             break
 
-model(0.01, initial_conditions)
+model(0.1, initial_conditions)

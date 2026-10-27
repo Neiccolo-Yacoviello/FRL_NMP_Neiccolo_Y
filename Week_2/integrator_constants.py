@@ -23,21 +23,23 @@ d: Final = 0.0762 # The diameter of the rocket in meters
 
 S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
 
-pitch_damp: Final = -0.00005 # The pitch dampening coefficient
+pitch_damp: Final = -0.0005 # The pitch dampening coefficient
 
 burnout_time: Final = 3.593 # The time at which the motor burns out
+
+C_Na: Final = 7.392 # The Normal Force per radian of the rocket
 
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data
 
 c_g_data: Final = np.loadtxt(DATA_DIR / "c_g(updated_10_26).csv", delimiter=',', skiprows=1) # The raw cg data
 
 raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics(updated_10_26).csv", delimiter=',', skiprows=1) # The raw aerodynamics data
-burnout = raw_A_data[:, 4].argmax() # Largest mach value
+burnout = raw_A_data[:, 3].argmax() # Largest mach value
 chute = np.argmax(raw_A_data[:, 1] > 10) # Jump in the drag coefficient
 aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice
-    "boost": raw_A_data[:burnout + 1][np.argsort(raw_A_data[:burnout + 1, 4])],
-    "coast": raw_A_data[burnout:chute][np.argsort(raw_A_data[burnout:chute, 4])],
-    "descent": raw_A_data[chute:][np.argsort(raw_A_data[chute:, 4])],
+    "boost": raw_A_data[:burnout + 1][np.argsort(raw_A_data[:burnout + 1, 3])],
+    "coast": raw_A_data[burnout:chute][np.argsort(raw_A_data[burnout:chute, 3])],
+    "descent": raw_A_data[chute:][np.argsort(raw_A_data[chute:, 3])],
 }
 
 """EOM Look Up Tables"""
@@ -60,11 +62,9 @@ def aerodynamic_LUT(t, v):
     if t > burnout_time: 
         phase = "coast"
         if v < 0.012:
-            count += 1
-            if count >= 2:
-                phase = "chute"
+            phase = "descent"
     data = aerodynamics_data[phase]
-    v_data = data[:, 4]
+    v_data = data[:, 3]
     return [float(np.interp(v, v_data, data[:, i])) for i in range(data.shape[1] - 1)]
 
 # Returns the interpolated thrust of the engine at:
@@ -79,7 +79,7 @@ def thrust_LUT(t):
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the center of gravity is constant
 def C_g_LUT(t):
     if t < burnout_time: # Burnout of the current motor (K700)
-        return np.interp(t, c_g_data[:, 0], c_g_data[:, 1])/100
+        return np.interp(t, c_g_data[:, 0], c_g_data[:, 1])
     else:
         return c_g_data[-1, 1]  # Return the last known center of gravity
 
