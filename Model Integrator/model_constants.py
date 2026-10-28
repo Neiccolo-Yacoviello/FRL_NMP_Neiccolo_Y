@@ -62,7 +62,7 @@ MCV = { # The variables used during monte carlo analysis to slightly vary initia
     "mass_offset": 0.0,
 }
 
-gains = [0.5, 1, 0] # The gains for the PID controller (K_P, K_I, K_D)
+gains = [0.6, 1, 0.1] # The gains for the PID controller (K_P, K_I, K_D)
 
 """Raw CSV data"""
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data

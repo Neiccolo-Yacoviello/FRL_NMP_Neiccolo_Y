@@ -27,10 +27,11 @@ def model(step, initial_condition, initial_time):
      
         if state_vector[1] < 0:
             # print(f"Simulation ended; Rocket touched down at {time}s.")
-            return max(altitude_list)[0], max(altitude_list)[1], time
+            return max(altitude_list)[0], max(altitude_list)[1], time, True
         elif np.abs(state_vector[4]) > 1 and time < burnout_time:
-            print(f"Simulation ended; Rocket over-rotated at {time}s.")
-            break
+            # print(f"Simulation ended; Rocket over-rotated at {time}s.")
+            return max(altitude_list)[0], max(altitude_list)[1], time, False
+
 
 
 max_info = model(0.01, initial_conditions, 0)
