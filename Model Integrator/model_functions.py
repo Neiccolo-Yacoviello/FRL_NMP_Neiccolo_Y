@@ -1,4 +1,5 @@
-from integrator_constants import *
+from model_constants import *
+from controller import *
 import numpy as np
 
 """Functions for the equations of motion in a 3DOF rocket model"""
@@ -11,7 +12,7 @@ def gravity(h):
 # Returns the mass flow rate of the rocket at:
 # time "t" (in seconds)
 def mass_flow_rate(t):
-    m_dot = -(thrust_LUT(t) * (m0 - m_dry))/ I_sp
+    m_dot = -(thrust_LUT(t) * (m0 - m_dry)) / (I_sp * MCV["thrust_scale"] * MCV["burn_scale"])
     return m_dot
 
 # Returns the dynamic pressure on the rocket at:
@@ -27,45 +28,56 @@ def q(h, v):
 def get_mach(h, v):
     temp = atmospheric_LUT(h)[2] + 273.15
     local_mach = np.sqrt(temp * air_specific_gas_constant * air_specific_heat_ratio)
-    return np.abs(v)/local_mach
+    return v/local_mach
 
 # Returns the Normal Force coeffcient of the rocket at:
 # the pitch of the rocket "pitch"
 # the angle of the velocity vector "upsilon"
 def get_C_N(pitch, upsilon):
     AoA = np.arctan2(np.sin(pitch - upsilon), np.cos(pitch - upsilon))
-    C_N = C_Na * AoA
+    C_N = C_Na * np.sin(AoA)
     return C_N
 
 # Returns the coeffcient of lift (based on the Normal force coefficient and Axial force coefficient) at:
 # time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
+# velocity in the z direction "v_z" (in m/s)
 # the pitch of the rocket "pitch"
 # the angle of the velocity vector "upsilon"
-def get_C_L(t, h, v, pitch, upsilon):
+def get_C_L(t, h, v, v_z, pitch, upsilon):
     AoA = np.arctan2(np.sin(pitch - upsilon), np.cos(pitch - upsilon))
     mach = get_mach(h, v)
-    C_L = get_C_N(pitch, upsilon) * np.cos(AoA) - aerodynamic_LUT(t, mach)[2] * np.sin(AoA)
+    C_L = get_C_N(pitch, upsilon) * np.cos(AoA) - (aerodynamic_LUT(t, mach, v_z)[2] * MCV["drag_scale"]) * np.sin(AoA)
     if np.isnan(C_L):
         C_L = 0
     return C_L
 
 # Returns the magnitude of the drag force in the inertial frame at:
+# time "t" (in seconds)
 # height "h" (in meters)
-# velocity "v" (in m/s)
-def drag(t, h, v):
-    drag = q(h, v) * aerodynamic_LUT(t, get_mach(h, v))[1] * S_area
+# total velocity "v" (in m/s)
+# velocity in the z direction "v_z" (in m/s)
+# the PID controller value "control_value" (0 <= value <= 1)
+def drag(t, h, v, v_z, control_value):
+    Q = q(h, v)
+    mach = get_mach(h, v)
+    drag = Q * MCV["drag_scale"] * (aerodynamic_LUT(t, mach, v_z)[1] * S_area + ab_C_d * air_break_area(control_value))
+    if v_z < 0: 
+        drag = q(h, v) * chute_C_d * drogue_area
+        if h < 300:
+            drag = q(h, v) * chute_C_d * (drogue_area + main_area)
     return drag
     
 # Returns the magnitude of the lift force in the inertial frame at:
 # time "t" (in seconds)
 # height "h" (in meters)
 # velocity "v" (in m/s)
+# velocity in the z direction "v_z" (in m/s)
 # the pitch of the rocket "pitch"
 # the angle of the velocity vector "upsilon"
-def lift(t, h, v, pitch, upsilon):
-    lift = q(h, v) * get_C_L(t, h, v, pitch, upsilon) * S_area
+def lift(t, h, v, v_z, pitch, upsilon):
+    lift = q(h, v) * get_C_L(t, h, v, v_z, pitch, upsilon) * S_area
     return lift
 
 # Returns the weight of the rocket at:
@@ -75,27 +87,38 @@ def weight(h, m):
     weight = m * gravity(h)
     return weight
 
+# Returns the effective reference area of the air brake at some angle at:
+# the PID controller value "control_value" (0 <= value <= 1)
+def air_break_area(control_value):
+    angle = np.radians(20 * control_value)
+    area = ab_W * ab_L * np.sin(angle)
+    return 4 * area # 4 panels
+
 """EOMs (Equations of Motion) that describe each degree of freedom in a 3DOF rocket model"""
 # Returns the acceleration in the z-direction of the inertial frame at:
 # time "t" (in seconds)
 # height "h" (in meters)
-# velocity "v" (in m/s)
+# magnitude of velocity "v" (in m/s)
+# velocity in the z direction "v_z" (in m/s)
 # pitch angle "pitch" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
-def eom_a_z(t, h, v, pitch, upsilon, m):
-    a_z = (thrust_LUT(t) * np.cos(pitch) - weight(h, m) - drag(t, h, v) * np.cos(upsilon) - lift(t, h, v, pitch, upsilon) * np.sin(upsilon))/m
+# the PID controller value "control_value" (0 <= value <= 1)
+def eom_a_z(t, h, v, v_z, pitch, upsilon, m, control_value):
+    a_z = (thrust_LUT(t) * np.cos(pitch) - weight(h, m) - drag(t, h, v, v_z, control_value) * np.cos(upsilon) - lift(t, h, v, v_z, pitch, upsilon) * np.sin(upsilon))/m
     return a_z
 
 # Returns the acceleration in the y-direction of the inertial frame at:
 # time "t" (in seconds)
 # height "h" (in meters)
-# velocity "v" (in m/s)
+# magnitude of velocity "v" (in m/s)
+# velocity in the z direction "v_z" (in m/s)
 # pitch angle "pitch" (in radians measured from the vertical)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
 # current mass of the rocket "m" (in kg)
-def eom_a_y(t, h, v, pitch, upsilon, m):
-    a_y = (thrust_LUT(t) * np.sin(pitch) - drag(t, h, v) * np.sin(upsilon) + lift(t, h, v, pitch, upsilon) * np.cos(upsilon))/m
+# the PID controller value "control_value" (0 <= value <= 1)
+def eom_a_y(t, h, v, v_z, pitch, upsilon, m, control_value):
+    a_y = (thrust_LUT(t) * np.sin(pitch) - drag(t, h, v, v_z, control_value) * np.sin(upsilon) + lift(t, h, v, v_z, pitch, upsilon) * np.cos(upsilon))/m
     return a_y
 
 # Returns the acceleration of the pitch angle of the inertial frame at:
@@ -105,11 +128,11 @@ def eom_a_y(t, h, v, pitch, upsilon, m):
 # pitch angle "pitch" (in radians measured from the vertical)
 # change in pitch angle "v_pitch" (in radians)
 # angle of the velocity vector "upsilon" (in radians measured from the vertical)
-def eom_a_pitch(t, h, v, pitch, v_pitch, upsilon):
+def eom_a_pitch(t, h, v, v_z, pitch, v_pitch, upsilon):
     Q = q(h, v)
     mach = get_mach(h, v)
     N = Q * S_area * get_C_N(pitch, upsilon)
-    moment = N * (C_g_LUT(t) - aerodynamic_LUT(t, mach)[0])/100
+    moment = N * (C_g_LUT(t) - aerodynamic_LUT(t, mach, v_z)[0])/100
     if np.isnan(moment):
         moment = 0.0
     if v == 0:
@@ -125,13 +148,21 @@ def eom_a_pitch(t, h, v, pitch, v_pitch, upsilon):
 def f(t, x):
     y, z, v_y, v_z, pitch, v_pitch, m = x
 
-    v = np.sqrt(v_z**2 + v_y**2)
+    v_y_wind = v_y - (MCV["wind_speed"] * np.cos(MCV["wind_direction"]))
 
-    upsilon = np.arctan2(v_y, v_z)
+    v = np.sqrt(v_z**2 + v_y_wind**2)
+    
+    upsilon = np.arctan2(v_y_wind, v_z)
 
-    a_y = eom_a_y(t, z, v, pitch, upsilon, m)
-    a_z = eom_a_z(t, z, v, pitch, upsilon, m)
-    a_pitch = eom_a_pitch(t, z, v, pitch, v_pitch, upsilon)
+    control_value = controller_state["control_value"]
+
+    a_y = eom_a_y(t, z, v, v_z, pitch, upsilon, m, control_value)
+    a_z = eom_a_z(t, z, v, v_z, pitch, upsilon, m, control_value)
+    a_pitch = eom_a_pitch(t, z, v, v_z, pitch, v_pitch, upsilon)
+
+    if z < L: # Launch rail (prevents rocket tipping from wind)
+        a_y = 0
+        a_pitch = 0
 
     return np.array([v_y, v_z, a_y, a_z, v_pitch, a_pitch, mass_flow_rate(t)])
 

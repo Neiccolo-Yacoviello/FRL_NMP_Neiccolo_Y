@@ -1,6 +1,5 @@
-from integrator_constants import *
+from model_constants import *
 import numpy as np
-import matplotlib.pyplot as plt
 
 # Returns the value of the derivative of the input function at:
 # initial position "x"

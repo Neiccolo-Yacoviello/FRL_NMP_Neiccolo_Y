@@ -4,6 +4,9 @@ import numpy as np
 
 DATA_DIR = Path(__file__).parent
 
+"""APOGEE TARGET"""
+target_apogee = 3000
+
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
 
@@ -21,6 +24,8 @@ m_dry: Final = 3.338 # The mass of the rocket after its burn in kilograms
 
 d: Final = 0.0762 # The diameter of the rocket in meters
 
+L: Final = 1.61 # The length of the rocket in meters
+
 S_area: Final = np.pi * (d / 2)**2 # The reference area of the rocket in m^2
 
 pitch_damp: Final = -0.0005 # The pitch dampening coefficient
@@ -29,6 +34,37 @@ burnout_time: Final = 3.593 # The time at which the motor burns out
 
 C_Na: Final = 7.392 # The Normal Force per radian of the rocket
 
+max_velo: Final = 417.5 # The max speed in m/s the rocket reaches during its flight (in perfect conditions)
+
+drogue_chute_d: Final = 0.457 # The diameter of the drogue chute in meters
+
+main_chute_d: Final = 1.0 # The diameter of the main chute in meters
+
+drogue_area: Final = np.pi * (drogue_chute_d / 2)**2 # The area of the drogue chute in m^2
+
+main_area: Final = np.pi * (main_chute_d / 2)**2 # The area of the main chute in m^2
+
+chute_C_d: Final = 0.8 # The drag coefficient of the parachutes
+
+ab_L: Final = 0.0493 # The length of the air brake panels
+
+ab_W: Final = 0.05388 # The width of the air brake panels
+
+ab_C_d: Final = 1.3 # The drag coefficient of the air brake panels
+
+"""Monte Carlo Analysis and PID constants"""
+MCV = { # The variables used during monte carlo analysis to slightly vary initial conditions
+    "wind_speed": 0.0,
+    "wind_direction": 0.0,
+    "thrust_scale": 1.0,
+    "burn_scale": 1.0,
+    "drag_scale": 1.0,
+    "mass_offset": 0.0,
+}
+
+gains = [0.5, 1, 0] # The gains for the PID controller (K_P, K_I, K_D)
+
+"""Raw CSV data"""
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data
 
 c_g_data: Final = np.loadtxt(DATA_DIR / "c_g(updated_10_26).csv", delimiter=',', skiprows=1) # The raw cg data
@@ -36,13 +72,13 @@ c_g_data: Final = np.loadtxt(DATA_DIR / "c_g(updated_10_26).csv", delimiter=',',
 raw_A_data = np.loadtxt(DATA_DIR / "aerodynamics(updated_10_26).csv", delimiter=',', skiprows=1) # The raw aerodynamics data
 burnout = raw_A_data[:, 3].argmax() # Largest mach value
 chute = np.argmax(raw_A_data[:, 1] > 10) # Jump in the drag coefficient
-aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice
+aerodynamics_data: Final = { # Describes the main phases of flight to pull aero data from since "every" mach number is reached twice on ascent (3 times for smaller values with descent)
     "boost": raw_A_data[:burnout + 1][np.argsort(raw_A_data[:burnout + 1, 3])],
     "coast": raw_A_data[burnout:chute][np.argsort(raw_A_data[burnout:chute, 3])],
     "descent": raw_A_data[chute:][np.argsort(raw_A_data[chute:, 3])],
 }
 
-"""EOM Look Up Tables"""
+"""EOM Look Up Tables (from CSV data)"""
 # Returns the atmospheric properties (density, pressure, and temperature) at:
 # height "h" (in meters) above the Earth's surface
 def atmospheric_LUT(h):
@@ -57,11 +93,12 @@ def atmospheric_LUT(h):
 
 # Returns the aerodynamic info is given by [Z_cp, C_d, C_A, C_N, v]
 # some velocity "v" (in mach number)
-def aerodynamic_LUT(t, v):
+# some velocity in the z direction "v_z" (in m/s)
+def aerodynamic_LUT(t, v, v_z):
     phase = "boost"
     if t > burnout_time: 
         phase = "coast"
-        if v < 0.012:
+        if v_z < 0:
             phase = "descent"
     data = aerodynamics_data[phase]
     v_data = data[:, 3]
@@ -70,8 +107,9 @@ def aerodynamic_LUT(t, v):
 # Returns the interpolated thrust of the engine at:
 # some time "t" (in seconds) where after burnout (t > 3.593 seconds) the thrust is zero
 def thrust_LUT(t):
+    t = t / MCV["burn_scale"]
     if t < burnout_time: # Burnout of the current motor (K700)
-        return np.interp(t, thrust_data[:, 0], thrust_data[:, 1])
+        return np.interp(t, thrust_data[:, 0], thrust_data[:, 1]) * MCV["thrust_scale"]
     else:
         return 0
 
