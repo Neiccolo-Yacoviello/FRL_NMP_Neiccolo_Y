@@ -5,7 +5,7 @@ import numpy as np
 DATA_DIR = Path(__file__).parent
 
 """APOGEE TARGET"""
-target_apogee = 3000
+target_apogee: Final = 3000
 
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
@@ -51,6 +51,8 @@ ab_L: Final = 0.0493 # The length of the air brake panels
 ab_W: Final = 0.05388 # The width of the air brake panels
 
 ab_C_d: Final = 1.3 # The drag coefficient of the air brake panels
+
+ab_max_angle: Final = 20 # The max angle the air brakes can travel (in degrees)
 
 """Monte Carlo Analysis and PID constants"""
 MCV = { # The variables used during monte carlo analysis to slightly vary initial conditions

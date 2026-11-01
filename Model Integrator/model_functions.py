@@ -90,7 +90,7 @@ def weight(h, m):
 # Returns the effective reference area of the air brake at some angle at:
 # the PID controller value "control_value" (0 <= value <= 1)
 def air_break_area(control_value):
-    angle = np.radians(20 * control_value)
+    angle = np.radians(ab_max_angle * control_value)
     area = ab_W * ab_L * np.sin(angle)
     return 4 * area # 4 panels
 

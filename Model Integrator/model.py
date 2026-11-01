@@ -1,6 +1,6 @@
 from model_functions import *
 
-initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0 + MCV["mass_offset"]]) # the beginning state vector containing [y, z, v_y, v_z, pitch, v_pitch, m]
+initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0 * MCV["mass_offset"]]) # the beginning state vector containing [y, z, v_y, v_z, pitch, v_pitch, m]
 
 def model(step, initial_condition, initial_time):
     reset_controller()
