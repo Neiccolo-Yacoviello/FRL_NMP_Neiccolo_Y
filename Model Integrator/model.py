@@ -1,7 +1,9 @@
 from model_functions import *
 
-initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0 * MCV["mass_offset"]]) # the beginning state vector containing [y, z, v_y, v_z, pitch, v_pitch, m]
-
+# Runs the integration mdoel with the PID controller for:
+# The step size "step" in seconds
+# The initial conditions "initial_condition" in the form of a numpy array
+# The initial time "initial_time" in seconds
 def model(step, initial_condition, initial_time):
     reset_controller()
     state_vector = initial_condition
@@ -24,16 +26,32 @@ def model(step, initial_condition, initial_time):
         step_size = adjust_step(step_size, checked_step[1])
         if state_vector[3] > 0:
             step_size = min(step_size, controller_step)
-     
+
+        safe = False # Recognizes whether or not the rocket hit the apogee target +/- 10m
+        above = None # Recognizes the direction of the rocket overshoot (if applicable)
+        if target_apogee + 10 > max(altitude_list)[0] > target_apogee - 10:
+            safe = True
+        if max(altitude_list)[0] < target_apogee - 10:
+            above = False
+        elif max(altitude_list)[0] > target_apogee + 10:
+            above = True
+
+        touchdown = False # Recognizes whether or not the rocket touched down
         if state_vector[1] < 0:
-            # print(f"Simulation ended; Rocket touched down at {time}s.")
-            return max(altitude_list)[0], max(altitude_list)[1], time, True
-        elif np.abs(state_vector[4]) > 1 and time < burnout_time:
+            touchdown = True
+
+        if safe and touchdown:
+            # print(f"Simulation success; Rocket touch down at {time}s.")
+            return max(altitude_list)[0], "success"
+        
+        elif np.abs(state_vector[4]) > np.radians(45) and 0.5 < time < 12.5:
             # print(f"Simulation ended; Rocket over-rotated at {time}s.")
-            return max(altitude_list)[0], max(altitude_list)[1], time, False
+            return max(altitude_list)[0], "over-rotation"
+        
+        elif above and touchdown:
+            # print(f"Simulation ended; Rocket undershot the target apogee at {time}s.")
+            return max(altitude_list)[0], "overshoot"
 
-
-
-max_info = model(0.01, initial_conditions, 0)
-
-print(f"The rocket reached apogee at {round(max_info[0], 3)}m at {round(max_info[1], 3)}s and touched down at {round(max_info[2], 3)}s")
+        elif not above and touchdown:
+            # print(f"Simulation ended; Rocket overshot the target apogee at {time}s.")
+            return max(altitude_list)[0], "undershoot"

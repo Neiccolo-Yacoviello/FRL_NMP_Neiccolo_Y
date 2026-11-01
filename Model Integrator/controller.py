@@ -68,7 +68,7 @@ def update_controller(time, state):
     y, z, v_y, v_z, pitch, v_pitch, m = state
     v = np.sqrt(v_y**2 + v_z**2)
 
-    if time > burnout_time and v_z > 0 and 0.25 * max_velo < v and v < 0.5 * max_velo:
+    if time > burnout_time and v_z > 0 and 0.25 * max_velo < v < 0.5 * max_velo:
         controller_state["predicted_apogee"] = predict_apogee(time, z, v_y, v_z, m, 0, controller_step)
         controller_state["control_value"] = pid(target_apogee, controller_state["predicted_apogee"], controller_step)
     else:
