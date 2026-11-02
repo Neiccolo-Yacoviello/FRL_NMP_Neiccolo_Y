@@ -1,15 +1,18 @@
 from model import *
 import random
+import time
 
-gains = [2.0, 0.0, 0.8] # The gains for the PID controller (K_P, K_I, K_D)
+start = time.perf_counter()
 
-seed = 5421906848956 # The seed for the simulation analysis, used to ensure reproducibility of the simulation results
+gains = [2.5, 0.3, 0.5] # The gains for the PID controller (K_P, K_I, K_D)
+
+seed = 9715264812327645301 # The seed for the simulation analysis, used to ensure reproducibility of the simulation results
 thrust_uncertainty_limit = 0.05 # The limit of uncertainty for thrust (I_sp) +/- x.x%
 burn_uncertainty_limit = 0.05 # The limit of uncertainty for burn time (burnout_time) +/- x.x%
 drag_uncertainty_limit = 0.04 # The limit of uncertainty for drag (C_d) +/- x.x%
 mass_uncertainty_limit = 0.1 # The limit of uncertainty for mass (m) +/- x.x%
 wind_limit = 5 # The limit of wind speed +/- x.x m/s
-trials = 1000 # The number of trials to run for the monte carlo analysis
+trials = 10000 # The number of trials to run for the monte carlo analysis
 
 initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0 * MCV["mass_offset"]])
 
@@ -62,7 +65,10 @@ while x < trials:
         sim_fail_list.append((round(max_info[0], 3), [val for val in list(MCV.values())], max_info[1], x))
         overshoots += 1
 
-print(f"\n\nNumber of failed simulations: {len(sim_fail_list)}")
+end = time.perf_counter()
+
+print(f"\n\nProgram took {(start-end):.4f}s to execute")
+print(f"\nNumber of failed simulations: {len(sim_fail_list)}")
 print(f"Number of successful simulations: {len(sim_success_list)}, success rate: {round(len(sim_success_list)/trials * 100, 2)}%")
 print(f"Average apogee of successful simulations: {round(sum(sim_success_list)/len(sim_success_list), 3)}m")
 print(f"\nMax apogee of failed simulations: {max(sim_fail_list, key=lambda x: x[0])[0]}m")
