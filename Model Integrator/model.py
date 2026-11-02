@@ -10,7 +10,9 @@ def model(step, initial_condition, initial_time):
     previous_state = state_vector
     step_size = step
     time = initial_time
-    altitude_list = []
+    altitude_list = [[0.1, 0.0]]
+    v_list = [0.0]
+    max_velo = 418
     while True:
         diff = rk_45_step(time, step_size, state_vector) # Contains the b4 and b5 evaluations of the step
         checked_step = check_step(diff[0], diff[1], previous_state) # Contains the step verification and the error of the step
@@ -21,10 +23,12 @@ def model(step, initial_condition, initial_time):
             time += step_size
             # print(f"Z: {round(state_vector[1], 3)}, V_Z: {round(state_vector[3], 3)}, V_Y: {round(state_vector[2], 3)}, Pitch: {round(state_vector[4], 3)}, Mass: {round(state_vector[6], 3)}, t: {round(time, 4)}")
             altitude_list.append([state_vector[1], time])
-            update_controller(time, state_vector)
+            v_list.append(velo)
+            update_controller(time, state_vector, max_velo)
 
+        max_velo = max(v_list)
         step_size = adjust_step(step_size, checked_step[1])
-        if state_vector[3] > 0:
+        if state_vector[3] > 0 and time > burnout_time:
             step_size = min(step_size, controller_step)
 
         safe = False # Recognizes whether or not the rocket hit the apogee target +/- 10m
@@ -37,7 +41,7 @@ def model(step, initial_condition, initial_time):
             above = True
 
         touchdown = False # Recognizes whether or not the rocket touched down
-        if state_vector[1] < 0:
+        if state_vector[1] < 0 and time > burnout_time:
             touchdown = True
 
         if safe and touchdown:

@@ -7,6 +7,18 @@ DATA_DIR = Path(__file__).parent
 """APOGEE TARGET"""
 target_apogee: Final = 3000
 
+"""Monte Carlo Analysis and PID constants"""
+MCV = { # The variables used during monte carlo analysis to slightly vary initial conditions
+    "wind_speed": 0.0,
+    "wind_direction": 0.0,
+    "thrust_scale": 1.0,
+    "burn_scale": 1.0,
+    "drag_scale": 1.0,
+    "mass_offset": 1.0,
+}
+
+gains = [1.7, 0.0, 0.75] # The gains for the PID controller (K_P, K_I, K_D)
+
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
 
@@ -34,8 +46,6 @@ burnout_time: Final = 3.593 # The time at which the motor burns out
 
 C_Na: Final = 7.392 # The Normal Force per radian of the rocket
 
-max_velo: Final = 417.5 # The max speed in m/s the rocket reaches during its flight (in perfect conditions)
-
 drogue_chute_d: Final = 0.457 # The diameter of the drogue chute in meters
 
 main_chute_d: Final = 1.0 # The diameter of the main chute in meters
@@ -46,25 +56,15 @@ main_area: Final = np.pi * (main_chute_d / 2)**2 # The area of the main chute in
 
 chute_C_d: Final = 0.8 # The drag coefficient of the parachutes
 
-ab_L: Final = 0.0493 # The length of the air brake panels
+ab_L: Final = 0.0762 # The length of the air brake panels
 
-ab_W: Final = 0.05388 # The width of the air brake panels
+ab_W: Final = 0.0381 # The width of the air brake panels
 
 ab_C_d: Final = 1.3 # The drag coefficient of the air brake panels
 
-ab_max_angle: Final = 20 # The max angle the air brakes can travel (in degrees)
+ab_max_angle: Final = 30 # The max angle the air brakes can travel (in degrees)
 
-"""Monte Carlo Analysis and PID constants"""
-MCV = { # The variables used during monte carlo analysis to slightly vary initial conditions
-    "wind_speed": 0.0,
-    "wind_direction": 0.0,
-    "thrust_scale": 1.0,
-    "burn_scale": 1.0,
-    "drag_scale": 1.0,
-    "mass_offset": 1.0,
-}
-
-gains = [0.9, 0.0, 0.25] # The gains for the PID controller (K_P, K_I, K_D)
+launch_rail_L: Final = 2.0 # The length of the launch rail in meters
 
 """Raw CSV data"""
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data
@@ -143,7 +143,7 @@ rk45_min_adjust: Final = 0.5 # The min step size scalar allowed
 
 atol: Final = 1e-4 # The allowable absolute error for any value
 
-atol_all: Final = (1e-3, 1e-3, 1e-6, 1e-6, 1e-3, 1e-3, 1e-6) # The allowable absolute error for each value in the state vector
+atol_all: Final = (1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-4, 1e-6) # The allowable absolute error for each value in the state vector
 
 rtol: Final = 1e-3 # The allowable relative error for any value
 

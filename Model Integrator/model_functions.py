@@ -160,7 +160,7 @@ def f(t, x):
     a_z = eom_a_z(t, z, v, v_z, pitch, upsilon, m, control_value)
     a_pitch = eom_a_pitch(t, z, v, v_z, pitch, v_pitch, upsilon)
 
-    if z < L: # Launch rail (prevents rocket tipping from wind)
+    if z < launch_rail_L: # Launch rail (prevents rocket tipping from wind)
         a_y = 0
         a_pitch = 0
 
@@ -190,11 +190,11 @@ def check_step(b4, b5, xi):
     error_scale = atol_all + rtol * np.maximum(np.abs(xi), np.abs(b5))
     error = np.abs(b4 - b5)
     error_sum = 0
-    N = 0
-    while N < len(error):
-        error_sum += (error[N]/error_scale[N]) ** 2
-        N += 1
-    normalized_error = np.sqrt(error_sum/N) # Normalizes the error between all values (regardless of units)
+    x = 0
+    while x < len(error):
+        error_sum += (error[x]/error_scale[x]) ** 2
+        x += 1
+    normalized_error = np.sqrt(error_sum/x) # Normalizes the error between all values (regardless of units)
     if normalized_error <= 1:
         return True, normalized_error
     return False, normalized_error
