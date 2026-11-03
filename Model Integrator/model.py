@@ -4,15 +4,16 @@ from model_functions import *
 # The step size "step" in seconds
 # The initial conditions "initial_condition" in the form of a numpy array
 # The initial time "initial_time" in seconds
-def model(step, initial_condition, initial_time):
-    reset_controller()
+def model(step, initial_condition, initial_time, PID = True):
+    if PID:
+        reset_controller()
     state_vector = initial_condition
     previous_state = state_vector
     step_size = step
     time = initial_time
-    altitude_list = [[0.1, 0.0]]
+    altitude_list = [[0.0, 0.0]]
     v_list = [0.0]
-    max_velo = 418
+    max_velo = 0
     while True:
         diff = rk_45_step(time, step_size, state_vector) # Contains the b4 and b5 evaluations of the step
         checked_step = check_step(diff[0], diff[1], previous_state) # Contains the step verification and the error of the step
@@ -24,7 +25,8 @@ def model(step, initial_condition, initial_time):
             # print(f"Z: {round(state_vector[1], 3)}, V_Z: {round(state_vector[3], 3)}, V_Y: {round(state_vector[2], 3)}, Pitch: {round(state_vector[4], 3)}, Mass: {round(state_vector[6], 3)}, t: {round(time, 4)}")
             altitude_list.append([state_vector[1], time])
             v_list.append(velo)
-            update_controller(time, state_vector, max_velo)
+            if PID:
+                update_controller(time, state_vector, max_velo)
 
         max_velo = max(v_list)
         step_size = adjust_step(step_size, checked_step[1])

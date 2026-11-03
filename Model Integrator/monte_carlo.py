@@ -3,8 +3,7 @@ import random
 import time
 
 start = time.perf_counter()
-
-gains = [2.5, 0.3, 0.5] # The gains for the PID controller (K_P, K_I, K_D)
+gains = [3.0, 0.25, 0.95] # The gains for the PID controller (K_P, K_I, K_D)
 
 seed = 9715264812327645301 # The seed for the simulation analysis, used to ensure reproducibility of the simulation results
 thrust_uncertainty_limit = 0.05 # The limit of uncertainty for thrust (I_sp) +/- x.x%
@@ -48,7 +47,7 @@ while x < trials:
     x += 1
 
     max_info = model(0.01, initial_conditions, 0)
-    print([float(round(max_info[0], 3)), max_info[1], x])
+    # print([float(round(max_info[0], 3)), max_info[1], x])
 
     if max_info[1] == "success":
         sim_success_list.append(round(max_info[0], 3))

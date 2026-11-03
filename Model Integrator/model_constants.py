@@ -17,22 +17,23 @@ MCV = { # The variables used during monte carlo analysis to slightly vary initia
     "mass_offset": 1.0,
 }
 
-gains = [1.7, 0.0, 0.75] # The gains for the PID controller (K_P, K_I, K_D)
+gains = [2.5, 0.3, 0.5] # The gains for the PID controller (K_P, K_I, K_D)
 
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface
 
 R_Earth: Final = 6371008 # The mean radius of the Earth in meters
 
-I_sp: Final = 2284 # The specific impulse of the rocket engine in Newton seconds
-
 air_specific_heat_ratio: Final = 1.4 # The standard specific heat ratio for dry air
 
 air_specific_gas_constant: Final = 287.05 # The specific gas constant for dry air
 
+"""Rocket Constants"""
 m0: Final = 4.630 # The initial mass of the rocket in kilograms
 
 m_dry: Final = 3.338 # The mass of the rocket after its burn in kilograms
+
+I_sp: Final = 2284 # The specific impulse of the rocket engine in Newton seconds
 
 d: Final = 0.0762 # The diameter of the rocket in meters
 
@@ -46,6 +47,9 @@ burnout_time: Final = 3.593 # The time at which the motor burns out
 
 C_Na: Final = 7.392 # The Normal Force per radian of the rocket
 
+launch_rail_L: Final = 2.0 # The length of the launch rail in meters
+
+"""Parachute Constants"""
 drogue_chute_d: Final = 0.457 # The diameter of the drogue chute in meters
 
 main_chute_d: Final = 1.0 # The diameter of the main chute in meters
@@ -56,15 +60,16 @@ main_area: Final = np.pi * (main_chute_d / 2)**2 # The area of the main chute in
 
 chute_C_d: Final = 0.8 # The drag coefficient of the parachutes
 
+main_deploy_height: Final = 300 # The height at which the main chute deploys in meters
+
+"""Air Brake Constants"""
 ab_L: Final = 0.0762 # The length of the air brake panels
 
 ab_W: Final = 0.0381 # The width of the air brake panels
 
-ab_C_d: Final = 1.3 # The drag coefficient of the air brake panels
-
 ab_max_angle: Final = 30 # The max angle the air brakes can travel (in degrees)
 
-launch_rail_L: Final = 2.0 # The length of the launch rail in meters
+ab_C_d: Final = 1.35 # The drag coefficient of the air brakes
 
 """Raw CSV data"""
 thrust_data: Final = np.loadtxt(DATA_DIR / "thrust(updated_10_26).csv", delimiter=',', skiprows=1) # The raw thrust data
@@ -123,6 +128,12 @@ def C_g_LUT(t):
     else:
         return c_g_data[-1, 1]  # Return the last known center of gravity
 
+def get_inertial_moment(t): # Changes during the burn
+    inertial_moment_x  = 0.4422 # Max exported from OR
+    if t < burnout_time:
+        return inertial_moment_x + (0.1780 * (1 - t / burnout_time)) # .1780 is the difference between the max and min exported from OR
+    return inertial_moment_x
+
 """RK45 Constants"""
 b_tableau: Final = [
     [0.0  , 0.0      , 0.0       , 0.0       , 0.0        , 0.0   , 0.0 ],
@@ -146,10 +157,3 @@ atol: Final = 1e-4 # The allowable absolute error for any value
 atol_all: Final = (1e-3, 1e-3, 1e-4, 1e-4, 1e-4, 1e-4, 1e-6) # The allowable absolute error for each value in the state vector
 
 rtol: Final = 1e-3 # The allowable relative error for any value
-
-"""Moments of inertia in each axes of rotation (only x included)"""
-def get_inertial_moment(t): # Changes during the burn
-    inertial_moment_x  = 0.4422 # Max exported from OR
-    if t < burnout_time:
-        return inertial_moment_x + (0.1780 * (1 - t / burnout_time)) # .1780 is the difference between the max and min exported from OR
-    return inertial_moment_x
