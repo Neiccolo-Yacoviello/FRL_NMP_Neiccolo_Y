@@ -17,7 +17,7 @@ MCV = { # The variables used during monte carlo analysis to slightly vary initia
     "mass_offset": 1.0,
 }
 
-gains = [2.5, 0.3, 0.5] # The gains for the PID controller (K_P, K_I, K_D)
+gains = [2.07, 0.0, 0.76] # The gains for the PID controller (K_P, K_I, K_D)
 
 """EOM Constants"""
 g_Earth_S: Final = 9.81 # The acceleration due to gravity at Earth's surface

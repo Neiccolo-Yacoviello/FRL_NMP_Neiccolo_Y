@@ -1,7 +1,7 @@
 from model_constants import *
 import numpy as np
 
-controller_step = 0.05
+controller_step = 0.025
 
 controller_state = {
     "control_value": 0.0,
