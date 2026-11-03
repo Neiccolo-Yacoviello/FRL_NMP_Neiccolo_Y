@@ -65,7 +65,7 @@ def drag(t, h, v, v_z, control_value):
     drag = Q * MCV["drag_scale"] * (aerodynamic_LUT(t, mach, v_z)[1] * S_area + ab_C_d * air_break_area(control_value))
     if v_z < 0: 
         drag = q(h, v) * chute_C_d * drogue_area
-        if h < 300:
+        if h < main_deploy_height:
             drag = q(h, v) * chute_C_d * (drogue_area + main_area)
     return drag
     

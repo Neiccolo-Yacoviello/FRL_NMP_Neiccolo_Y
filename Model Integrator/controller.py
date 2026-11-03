@@ -27,7 +27,7 @@ def predict_apogee(t, h, v_y, v_z, m, control_value, step):
         local_mach = np.sqrt(temp * air_specific_gas_constant * air_specific_heat_ratio)
         mach = v/local_mach
         C_d = aerodynamic_LUT(t, mach, v_z)[1]
-        ab_area = 4 * ab_W * ab_L * np.sin(np.radians(20 * control_value))
+        ab_area = 4 * ab_W * ab_L * np.sin(np.radians(ab_max_angle * control_value))
 
         D = 0.5 * rho * v**2 * (C_d * S_area + ab_C_d * ab_area)
 

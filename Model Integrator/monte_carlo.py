@@ -1,7 +1,7 @@
 from model import *
 import random
 
-gains = [2.0, 0.0, 0.8] # The gains for the PID controller (K_P, K_I, K_D)
+gains = [3.0, 0.25, 0.95] # The gains for the PID controller (K_P, K_I, K_D)
 
 seed = 5421906848956 # The seed for the simulation analysis, used to ensure reproducibility of the simulation results
 thrust_uncertainty_limit = 0.05 # The limit of uncertainty for thrust (I_sp) +/- x.x%
@@ -9,7 +9,7 @@ burn_uncertainty_limit = 0.05 # The limit of uncertainty for burn time (burnout_
 drag_uncertainty_limit = 0.04 # The limit of uncertainty for drag (C_d) +/- x.x%
 mass_uncertainty_limit = 0.1 # The limit of uncertainty for mass (m) +/- x.x%
 wind_limit = 5 # The limit of wind speed +/- x.x m/s
-trials = 1000 # The number of trials to run for the monte carlo analysis
+trials = 2000 # The number of trials to run for the monte carlo analysis
 
 initial_conditions = np.array([0, 0, 0, 0, 0, 0, m0 * MCV["mass_offset"]])
 
@@ -45,7 +45,7 @@ while x < trials:
     x += 1
 
     max_info = model(0.01, initial_conditions, 0)
-    print([float(round(max_info[0], 3)), max_info[1], x])
+    # print([float(round(max_info[0], 3)), max_info[1], x])
 
     if max_info[1] == "success":
         sim_success_list.append(round(max_info[0], 3))
